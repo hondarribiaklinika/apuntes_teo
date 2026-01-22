@@ -23,6 +23,50 @@ function isGibberish(s: string) {
     return false;
 }
 
+// Workbook box keywords to exclude (case-insensitive)
+const WORKBOOK_KEYWORDS = [
+    "behat", "ulertu", "arrazoi", "alderatu", "pentsamendu",
+    "galder", "ariketa", "iritzi", "espazioan", "kokatu"
+];
+
+// Generic label-like words to exclude
+const GENERIC_LABELS = [
+    "definición", "causas", "quiénes eran", "características",
+    "consecuencias", "objetivos", "ventajas", "desventajas"
+];
+
+/**
+ * Check if text is invalid for quiz content (questions, headings, exercises, workbook keywords).
+ */
+function isInvalidContent(s: string): boolean {
+    const trimmed = s.trim();
+
+    // 1. Interrogative: contains "?" or starts with "¿"
+    if (trimmed.includes("?") || trimmed.startsWith("¿")) return true;
+
+    // 2. Numbered exercise: starts with digit followed by . or )
+    if (/^\s*\d+[\.\)]\s+/.test(trimmed)) return true;
+
+    // 3. Very short heading: less than 5 words
+    const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+    if (wordCount < 5) return true;
+
+    // 4. Single-word or generic labels
+    const lower = trimmed.toLowerCase();
+    for (const label of GENERIC_LABELS) {
+        if (lower === label || lower.startsWith(label + " ") || lower.endsWith(" " + label)) {
+            return true;
+        }
+    }
+
+    // 5. Workbook keywords (case-insensitive)
+    for (const kw of WORKBOOK_KEYWORDS) {
+        if (lower.includes(kw)) return true;
+    }
+
+    return false;
+}
+
 export function extractFacts(ocrText: string, imageIdFallback: Id = "theme"): Fact[] {
     const lines = ocrText.split(/\r?\n/).map(l => l.trim());
     const facts: Fact[] = [];
@@ -74,7 +118,7 @@ export function extractFacts(ocrText: string, imageIdFallback: Id = "theme"): Fa
             }
         }
 
-        if (detected && !isGibberish(detected.term) && !isGibberish(detected.def)) {
+        if (detected && !isGibberish(detected.term) && !isGibberish(detected.def) && !isInvalidContent(detected.def)) {
             const pos = ocrText.indexOf(line, cursor);
             const start = pos >= 0 ? pos : Math.max(0, ocrText.indexOf(detected.term));
             const end = Math.min(ocrText.length, start + line.length + (lines[i] ? lines[i].length : 0));
