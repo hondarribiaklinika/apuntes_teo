@@ -178,7 +178,7 @@ export function ThemesPage() {
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `apuntes-teo-${new Date().toISOString().slice(0, 10)}.json`;
+            a.download = `apuntes-teo-backup-${new Date().toISOString().slice(0, 10)}.json`;
             a.click();
             URL.revokeObjectURL(url);
         } finally {
@@ -362,7 +362,7 @@ export function ThemesPage() {
                     <input
                         ref={fileInputRef}
                         type="file"
-                        accept=".json,application/json"
+                        accept="application/json,.json,text/plain,.txt"
                         className="hidden"
                         onChange={handleImport}
                     />
@@ -377,6 +377,14 @@ export function ThemesPage() {
                 </div>
             )}
 
+            {/* Local Data Notice */}
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl px-4 py-3 text-xs flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>
+                    <strong>Datuak gailu honetan gordetzen dira</strong> (lokalean). Beste gailu batean ikusteko: Esportatu JSON → Inportatu JSON.
+                </span>
+            </div>
+
             {/* List */}
             {filteredThemes.length === 0 ? (
                 <Card className="border-dashed border-2 bg-slate-50/50 py-12">
@@ -385,9 +393,9 @@ export function ThemesPage() {
                             <Upload className="h-8 w-8 text-slate-400" />
                         </div>
                         <h3 className="text-lg font-semibold text-slate-900">Hemen ez dago ezer</h3>
-                        <p className="mt-1 text-sm text-slate-500 max-w-[240px]">
+                        <p className="mt-1 text-sm text-slate-500 max-w-[280px]">
                             {themes.length === 0
-                                ? "Lehenengo, inportatu capturak galeriatik zure lehen testa sortzeko."
+                                ? "Lehenengo, inportatu capturak galeriatik zure lehen testa sortzeko. Datuak gailu honetan gordetzen dira."
                                 : "Ez dugu aurkitu bilatzen ari zaren gaia."}
                         </p>
                         <Button className="mt-6 rounded-2xl px-6" onClick={() => nav("/import")}>
