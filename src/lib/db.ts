@@ -92,5 +92,51 @@ export const db = {
     async nukeAll(): Promise<void> {
         const all = await keys();
         await Promise.all(all.map(k => del(k)));
+    },
+
+    async exportAllData(): Promise<string> {
+        const themes = await this.getThemes();
+        const data: Record<string, any> = {
+            schemaVersion: 1,
+            exportedAt: Date.now(),
+            themes
+        };
+
+        // Export questions for each theme
+        for (const theme of themes) {
+            const questions = await this.getQuestions(theme.id);
+            data[`questions_${theme.id}`] = questions;
+        }
+
+        return JSON.stringify(data, null, 2);
+    },
+
+    async importAllData(jsonString: string): Promise<{ themesImported: number; questionsImported: number }> {
+        const data = JSON.parse(jsonString);
+
+        if (!data.schemaVersion || !data.themes) {
+            throw new Error("Formatua okerra. Esportazio balio bat behar da.");
+        }
+
+        let themesImported = 0;
+        let questionsImported = 0;
+
+        for (const theme of data.themes) {
+            // Ensure subject exists (migration for older exports)
+            if (!theme.subject) {
+                theme.subject = "Fisika eta Kimika";
+            }
+            await this.upsertTheme(theme);
+            themesImported++;
+
+            // Import questions if they exist
+            const questionsKey = `questions_${theme.id}`;
+            if (data[questionsKey] && Array.isArray(data[questionsKey])) {
+                await this.setQuestions(theme.id, data[questionsKey]);
+                questionsImported += data[questionsKey].length;
+            }
+        }
+
+        return { themesImported, questionsImported };
     }
 };

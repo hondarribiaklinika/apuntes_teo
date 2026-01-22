@@ -19,6 +19,25 @@ npm run dev -- --host 0.0.0.0
 ```
 Gero, sartu zure ordenagailuaren IP-an 5173 portuan.
 
+### Vercel-era Zabaltzea (Deployment)
+
+1. [Vercel](https://vercel.com)-era saioa hasi
+2. "Add New" → "Project" → Zure GitHub repo aukeratu
+3. Framework Preset: `Vite` aukeratu
+4. Deploy klik egin – listo!
+
+SPA routing `vercel.json`-en konfiguratuta dago.
+
+### Datuak Beste Gailu Batera Transferitu
+
+Datu guztiak (gaiak, galderak) gailu artean transferitzeko:
+
+1. **Esportatu**: "Esportatu" → JSON fitxategia deskargatzen da
+2. **Inportatu**: Beste gailuan "Inportatu JSON" → JSON fitxategia aukeratu
+3. Datuak automatikoki gehitzen dira (ID berdinak = ordezkatu)
+
+> 💡 Interneterik gabe funtzionatzen du – fitxategia AirDrop/WhatsApp bidez bidal dezakezu.
+
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:

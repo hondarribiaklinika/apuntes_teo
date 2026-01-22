@@ -11,9 +11,10 @@ import { Input } from "@/components/ui/input";
 import {
     Search, Plus, Upload, Play, Trash2,
     Clock, ArrowUpDown, Filter, AlertCircle,
-    ChevronRight, Sparkles, Clipboard
+    ChevronRight, Sparkles, Clipboard, Download, FileText, Eye, X
 } from "lucide-react";
 import { generateQuestionsFromOcr } from "@/lib/qaGenerator";
+import { extractFacts } from "@/lib/facts";
 
 const SAMPLE_NOTES = `GAIA: Materialaren aniztasuna / Nahasteak / Disoluzioak / Substantzia puruak
 
@@ -73,6 +74,10 @@ export function ThemesPage() {
     const [search, setSearch] = React.useState("");
     const [sortBy, setSortBy] = React.useState<"date" | "name" | "status" | "subject">("date");
     const [selectedSubject, setSelectedSubject] = React.useState<Subject | "Guztiak">("Guztiak");
+    const [verifyingTheme, setVerifyingTheme] = React.useState<Theme | null>(null);
+    const [verifyData, setVerifyData] = React.useState<{ factsCount: number; questionsCount: number } | null>(null);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const [importSuccess, setImportSuccess] = React.useState<string | null>(null);
 
     const load = React.useCallback(async () => {
         const t = await db.getThemes();
@@ -163,6 +168,47 @@ export function ThemesPage() {
         } finally {
             setBusy(false);
         }
+    }
+
+    async function handleExport() {
+        setBusy(true);
+        try {
+            const json = await db.exportAllData();
+            const blob = new Blob([json], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `apuntes-teo-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setBusy(true);
+        try {
+            const text = await file.text();
+            const result = await db.importAllData(text);
+            await load();
+            setImportSuccess(`${result.themesImported} gai eta ${result.questionsImported} galdera inportatuta!`);
+            setTimeout(() => setImportSuccess(null), 4000);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Inportazio errorea");
+        } finally {
+            setBusy(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    }
+
+    async function verifyTheme(theme: Theme) {
+        const facts = theme.ocrText ? extractFacts(theme.ocrText) : [];
+        const questions = await db.getQuestions(theme.id);
+        setVerifyData({ factsCount: facts.length, questionsCount: questions.length });
+        setVerifyingTheme(theme);
     }
 
     const filteredThemes = React.useMemo(() => {
@@ -291,8 +337,45 @@ export function ThemesPage() {
                         <option value="subject">Irakasgaia</option>
                         <option value="status">Egoeraren arabera</option>
                     </select>
+
+                    {/* Export/Import buttons */}
+                    <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-11 px-3 rounded-2xl border border-slate-200 text-slate-600 hover:bg-slate-50 bg-white"
+                        onClick={handleExport}
+                        disabled={busy || themes.length === 0}
+                    >
+                        <Download className="mr-1 h-4 w-4" />
+                        Esportatu
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-11 px-3 rounded-2xl border border-slate-200 text-slate-600 hover:bg-slate-50 bg-white"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={busy}
+                    >
+                        <FileText className="mr-1 h-4 w-4" />
+                        Inportatu JSON
+                    </Button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".json,application/json"
+                        className="hidden"
+                        onChange={handleImport}
+                    />
                 </div>
             </div>
+
+            {/* Import Success Toast */}
+            {importSuccess && (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl px-4 py-3 text-sm font-medium flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    {importSuccess}
+                </div>
+            )}
 
             {/* List */}
             {filteredThemes.length === 0 ? (
@@ -384,6 +467,15 @@ export function ThemesPage() {
                                             <Trash2 className="h-3.5 w-3.5 mr-1" />
                                             Ezabatu
                                         </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-9 px-3 rounded-xl text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 text-xs font-semibold"
+                                            onClick={() => verifyTheme(t)}
+                                        >
+                                            <Eye className="h-3.5 w-3.5 mr-1" />
+                                            Egiaztatu
+                                        </Button>
                                     </div>
                                     <Button
                                         variant="default"
@@ -399,6 +491,55 @@ export function ThemesPage() {
                             </CardContent>
                         </Card>
                     ))}
+                </div>
+            )}
+
+            {/* Verification Modal */}
+            {verifyingTheme && verifyData && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => { setVerifyingTheme(null); setVerifyData(null); }}>
+                    <div className="bg-white rounded-3xl w-full max-w-md max-h-[80vh] overflow-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="p-6 border-b border-slate-100">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-900">{verifyingTheme.title}</h2>
+                                    <p className="text-xs text-slate-500 mt-1">Gaiaren informazioa</p>
+                                </div>
+                                <button onClick={() => { setVerifyingTheme(null); setVerifyData(null); }} className="p-1 rounded-full hover:bg-slate-100"><X className="h-5 w-5 text-slate-500" /></button>
+                            </div>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-50 rounded-2xl p-4 text-center">
+                                    <div className="text-2xl font-black text-indigo-600">{verifyData.factsCount}</div>
+                                    <div className="text-xs text-slate-500 font-medium mt-1">Kontzeptuak</div>
+                                </div>
+                                <div className="bg-slate-50 rounded-2xl p-4 text-center">
+                                    <div className="text-2xl font-black text-emerald-600">{verifyData.questionsCount}</div>
+                                    <div className="text-xs text-slate-500 font-medium mt-1">Galderak</div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-slate-600">Egoera:</span>
+                                <StatusBadge status={verifyingTheme.status} />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-slate-600">Irakasgaia:</span>
+                                <Badge variant="secondary" className="bg-slate-100 text-slate-600 text-xs">{verifyingTheme.subject}</Badge>
+                            </div>
+                            {verifyingTheme.ocrText && (
+                                <details className="group">
+                                    <summary className="text-xs font-semibold text-indigo-600 cursor-pointer hover:underline flex items-center gap-1">
+                                        <FileText className="h-3.5 w-3.5" />
+                                        Ikusi iturria (OCR)
+                                    </summary>
+                                    <pre className="mt-2 text-[10px] leading-relaxed text-slate-600 bg-slate-50 p-3 rounded-xl max-h-40 overflow-auto whitespace-pre-wrap">{verifyingTheme.ocrText}</pre>
+                                </details>
+                            )}
+                        </div>
+                        <div className="p-4 border-t border-slate-100">
+                            <Button className="w-full rounded-xl" onClick={() => { setVerifyingTheme(null); setVerifyData(null); }}>Itxi</Button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
