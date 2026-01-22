@@ -17,7 +17,7 @@ export function AppShell() {
     const showBack = loc.pathname !== "/";
 
     return (
-        <div className="min-h-full w-full bg-slate-50 safe-pt">
+        <div className="min-h-full w-full bg-slate-50 safe-pt safe-pb overflow-x-hidden">
             <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur w-full">
                 <div className="mx-auto flex w-full max-w-2xl items-center gap-3 py-3 safe-px">
                     <div className="w-16 shrink-0">
